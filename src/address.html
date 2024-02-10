@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Geolocation</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.8.0/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        #createRouteBtn {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+
+        #createRouteBtn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div id="map"></div>
+
+    <button id="createRouteBtn">Create Route</button>
+
+    <script src="https://unpkg.com/leaflet@1.8.0/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script src="https://unpkg.com/h3-js"></script>
+
+    <script>
+        // Function to convert latitude and longitude to Uber H3 cell index
+        function getH3CellIndex(latitude, longitude, resolution) {
+            // Convert lat/lng point to a hexagon index at the specified resolution
+            return h3.latLngToCell(latitude, longitude, resolution);
+        }
+
+        var map = L.map('map').setView([28.2380, 83.9956], 11);
+        mapLink = "<a href='http://openstreetmap.org'>OpenStreetMap</a>";
+        L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', { attribution: 'Leaflet &copy; ' + mapLink + ', contribution', maxZoom: 18 }).addTo(map);
+
+        var marker;
+        var routingControl;
+        var startPoint;
+        var endPoint;
+
+        var searchControl = L.Control.geocoder({
+            position: 'bottomright',
+            defaultMarkGeocode: false,
+            placeholder: 'Search...',
+            collapsed: true
+        });
+
+        searchControl.on('markgeocode', function (e) {
+            var latlng = e.geocode.center;
+            var address = e.geocode.name;
+            var coordinates = "Latitude: " + latlng.lat.toFixed(5) + ", Longitude: " + latlng.lng.toFixed(5);
+            var h3Index = getH3CellIndex(latlng.lat, latlng.lng, 10);
+            var popupContent = "<div class='popup-content'><strong>Address:</strong> " + address + "<br><strong>Coordinates:</strong> " + coordinates + "<br><strong>H3 Cell ID:</strong> " + h3Index + "</div>";
+            var customPopup = L.popup().setLatLng(latlng).setContent(popupContent).openOn(map);
+
+            if (!startPoint) {
+                startPoint = latlng;
+            } else if (!endPoint) {
+                endPoint = latlng;
+
+                if (marker) {
+                    map.removeLayer(marker);
+                }
+                marker = L.marker(latlng).addTo(map);
+            }
+        });
+
+        map.addControl(searchControl);
+
+        // Function to create route between two points
+        function createRoute() {
+            if (startPoint && endPoint) {
+                if (routingControl) {
+                    map.removeControl(routingControl);
+                }
+                routingControl = L.Routing.control({
+                    waypoints: [
+                        startPoint, // Starting point
+                        endPoint // Destination point
+                    ],
+                    routeWhileDragging: true
+                }).addTo(map);
+
+                map.fitBounds([startPoint, endPoint]);
+            } else {
+                alert("Please select both starting and ending points.");
+            }
+        }
+
+        document.getElementById('createRouteBtn').addEventListener('click', createRoute);
+
+    </script>
+</body>
+
+</html>
